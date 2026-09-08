@@ -1,0 +1,129 @@
+name: Docker Build and Test
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  docker-test:
+    runs-on: ubuntu-latest
+
+    steps:
+
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Build Docker image
+        run: |
+          docker build -t task-manager:latest .
+
+      - name: Check Docker image size
+        run: |
+          SIZE_BYTES=$(docker image inspect task-manager:latest --format='{{.Size}}')
+          SIZE_MB=$((SIZE_BYTES / 1024 / 1024))
+
+          echo "Docker image size: ${SIZE_MB} MB"
+
+          if [ "$SIZE_MB" -ge 150 ]; then
+            echo "ERROR: Docker image is 150 MB or larger."
+            exit 1
+          fi
+
+          echo "Image size requirement passed."
+
+      - name: Start Docker Compose
+        run: |
+          docker compose up -d
+
+      - name: Show container status
+        run: |
+          docker compose ps
+
+      - name: Wait for application health
+        run: |
+          for i in {1..30}; do
+            if curl -fs http://localhost:5000/health; then
+              echo ""
+              echo "Application is healthy."
+              exit 0
+            fi
+
+            echo "Waiting for application..."
+            sleep 2
+          done
+
+          echo "Application failed health check."
+          docker compose logs
+          exit 1
+
+      - name: Verify non-root execution
+        run: |
+          USER_NAME=$(docker compose exec -T web whoami)
+
+          echo "Container user: $USER_NAME"
+
+          if [ "$USER_NAME" != "appuser" ]; then
+            echo "ERROR: Container is not running as appuser."
+            exit 1
+          fi
+
+          echo "Non-root user requirement passed."
+
+      - name: Test task creation
+        run: |
+          curl -fsS \
+            -X POST \
+            -H "Content-Type: application/json" \
+            -d '{"title":"Docker Persistence Test"}' \
+            http://localhost:5000/tasks
+
+          echo ""
+
+      - name: Verify task
+        run: |
+          curl -fsS http://localhost:5000/tasks
+          echo ""
+
+      - name: Test volume persistence
+        run: |
+          echo "Stopping containers..."
+          docker compose down
+
+          echo "Starting containers again..."
+          docker compose up -d
+
+          echo "Waiting for application..."
+
+          for i in {1..30}; do
+            if curl -fs http://localhost:5000/health; then
+              echo ""
+              echo "Application is healthy after restart."
+              break
+            fi
+
+            sleep 2
+          done
+
+          echo "Checking persisted task..."
+
+          TASKS=$(curl -fsS http://localhost:5000/tasks)
+
+          echo "$TASKS"
+
+          echo "$TASKS" | grep -q "Docker Persistence Test"
+
+          echo "Volume persistence test passed."
+
+      - name: Show Docker logs
+        if: always()
+        run: |
+          docker compose logs
+
+      - name: Stop containers
+        if: always()
+        run: |
+          docker compose down
