@@ -426,3 +426,7 @@ This project demonstrates practical implementation of:
 ## Author
 
 Manasi Patil
+<<<<<<< HEAD
+=======
+
+>>>>>>> 0873a9f41566557fef6db5dfcb222c5fd8e8a324
