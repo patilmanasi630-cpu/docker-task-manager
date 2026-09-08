@@ -1,4 +1,4 @@
-name: Docker File Check
+name: Check Repository Files
 
 on:
   push:
@@ -6,32 +6,28 @@ on:
       - main
 
 jobs:
-  check:
+  check-files:
     runs-on: ubuntu-latest
 
     steps:
-
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Show repository
+      - name: Show branch and commit
         run: |
-          echo "Current folder:"
-          pwd
+          echo "Branch:"
+          git branch --show-current
 
-          echo "Files in repository:"
-          ls -la
+          echo "Commit:"
+          git rev-parse HEAD
 
-          echo "All files:"
-          find . -type f | sort
-
-      - name: Check compose file
+      - name: Show repository files
         run: |
-          echo "Checking docker-compose.yml..."
+          echo "Files available in GitHub Actions:"
+          find . -maxdepth 4 -type f | sort
 
-          if [ -f "docker-compose.yml" ]; then
-            echo "SUCCESS: docker-compose.yml FOUND"
-          else
-            echo "ERROR: docker-compose.yml NOT FOUND"
-            exit 1
-          fi
+      - name: Check Docker files
+        run: |
+          test -f Dockerfile
+          test -f docker-compose.yml
+          echo "SUCCESS: Both Docker files found."
