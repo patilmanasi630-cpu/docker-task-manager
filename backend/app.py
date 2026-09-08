@@ -52,9 +52,13 @@ def health():
     try:
         conn = get_db_connection()
         cur = conn.cursor()
+<<<<<<< HEAD
 
         cur.execute("SELECT 1")
 
+=======
+        cur.execute("SELECT 1")
+>>>>>>> bb7622d03e5f9dcb70cbddfcd1d8bb8119774244
         cur.close()
         conn.close()
 
@@ -112,7 +116,10 @@ def add_task():
     task_id = cur.fetchone()[0]
 
     conn.commit()
+<<<<<<< HEAD
 
+=======
+>>>>>>> bb7622d03e5f9dcb70cbddfcd1d8bb8119774244
     cur.close()
     conn.close()
 
@@ -144,7 +151,15 @@ def delete_task(task_id):
 
 if __name__ == "__main__":
     init_db()
+<<<<<<< HEAD
     app.run(
         host="0.0.0.0",
         port=5000
     )
+=======
+
+    app.run(
+        host="0.0.0.0",
+        port=5000
+    )
+>>>>>>> bb7622d03e5f9dcb70cbddfcd1d8bb8119774244

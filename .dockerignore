@@ -1,10 +1,15 @@
 .git
 .github
 .gitignore
+<<<<<<< HEAD
+=======
+
+>>>>>>> bb7622d03e5f9dcb70cbddfcd1d8bb8119774244
 __pycache__
 *.pyc
 *.pyo
 *.pyd
+<<<<<<< HEAD
 *.log
 .env
 .env.*
@@ -14,4 +19,21 @@ env
 .vscode
 .idea
 .DS_Store
+=======
+
+*.log
+
+.env
+.env.*
+
+.venv
+venv
+env
+
+.vscode
+.idea
+
+.DS_Store
+
+>>>>>>> bb7622d03e5f9dcb70cbddfcd1d8bb8119774244
 README.md
