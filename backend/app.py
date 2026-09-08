@@ -1,4 +1,3 @@
-
 from flask import Flask, request, jsonify, render_template
 import os
 import psycopg2
@@ -8,22 +7,22 @@ app = Flask(__name__)
 
 
 def get_db_connection():
-    return psycopg2.connect(
-        host=os.getenv("DB_HOST", "db"),
-        database=os.getenv("POSTGRES_DB", "taskdb"),
-        user=os.getenv("POSTGRES_USER", "taskuser"),
-        password=os.getenv("POSTGRES_PASSWORD", "taskpassword")
-    )
+    database_url = os.getenv("DATABASE_URL")
+
+    if not database_url:
+        raise Exception("DATABASE_URL is not set")
+
+    return psycopg2.connect(database_url)
 
 
 def init_db():
-    for attempt in range(10):
+    for attempt in range(15):
         try:
             conn = get_db_connection()
             cur = conn.cursor()
 
             cur.execute("""
-      CREATE TABLE IF NOT EXISTS tasks (
+                CREATE TABLE IF NOT EXISTS tasks (
                     id SERIAL PRIMARY KEY,
                     title TEXT NOT NULL
                 )
@@ -36,9 +35,10 @@ def init_db():
             print("Database initialized successfully")
             return
 
-        except psycopg2.OperationalError:
-            print("Waiting for database...")
-            time.sleep(2)
+        except psycopg2.OperationalError as error:
+            print(f"Waiting for database... Attempt {attempt + 1}/15")
+            print(f"Database connection error: {error}")
+            time.sleep(3)
 
     raise Exception("Could not connect to database")
 
@@ -64,7 +64,9 @@ def health():
             "database": "connected"
         })
 
-    except Exception:
+    except Exception as error:
+        print(f"Health check error: {error}")
+
         return jsonify({
             "status": "unhealthy",
             "database": "disconnected"
@@ -146,7 +148,9 @@ def delete_task(task_id):
 if __name__ == "__main__":
     init_db()
 
+    port = int(os.getenv("PORT", 5000))
+
     app.run(
         host="0.0.0.0",
-        port=5000
+        port=port
     )
