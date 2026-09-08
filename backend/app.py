@@ -2,8 +2,19 @@ from flask import Flask, request, jsonify, render_template
 import os
 import psycopg2
 import time
+from prometheus_flask_exporter import PrometheusMetrics
 
 app = Flask(__name__)
+
+# Prometheus monitoring
+metrics = PrometheusMetrics(app)
+
+# Application information metric
+metrics.info(
+    "task_manager_app",
+    "Task Manager application information",
+    version="1.0.0"
+)
 
 
 def get_db_connection():
