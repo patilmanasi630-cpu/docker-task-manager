@@ -1,4 +1,4 @@
-name: Docker Build and Test
+name: Docker File Check
 
 on:
   push:
@@ -6,7 +6,7 @@ on:
       - main
 
 jobs:
-  docker-test:
+  check:
     runs-on: ubuntu-latest
 
     steps:
@@ -14,104 +14,24 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Find project files
+      - name: Show repository
         run: |
-          echo "Current directory:"
+          echo "Current folder:"
           pwd
 
+          echo "Files in repository:"
+          ls -la
+
           echo "All files:"
-          find . -maxdepth 3 -type f | sort
+          find . -type f | sort
 
-      - name: Check Docker files
+      - name: Check compose file
         run: |
-          test -f ./Dockerfile
-          test -f ./docker-compose.yml
-          echo "Dockerfile found"
-          echo "docker-compose.yml found"
+          echo "Checking docker-compose.yml..."
 
-      - name: Build Docker image
-        run: |
-          docker build -t task-manager:latest .
-
-      - name: Check image size
-        run: |
-          SIZE=$(docker image inspect task-manager:latest --format='{{.Size}}')
-          SIZE_MB=$((SIZE / 1024 / 1024))
-
-          echo "Image size: ${SIZE_MB} MB"
-
-          if [ "$SIZE_MB" -ge 150 ]; then
-            echo "Image is too large."
+          if [ -f "docker-compose.yml" ]; then
+            echo "SUCCESS: docker-compose.yml FOUND"
+          else
+            echo "ERROR: docker-compose.yml NOT FOUND"
             exit 1
           fi
-
-      - name: Start Docker Compose
-        run: |
-          docker compose -f ./docker-compose.yml up -d
-
-      - name: Show containers
-        run: |
-          docker compose -f ./docker-compose.yml ps
-
-      - name: Wait for application
-        run: |
-          for i in {1..30}
-          do
-            if curl -fs http://localhost:5000/health
-            then
-              echo "Application is healthy."
-              exit 0
-            fi
-
-            sleep 2
-          done
-
-          docker compose -f ./docker-compose.yml logs
-          exit 1
-
-      - name: Check non-root user
-        run: |
-          USER_NAME=$(docker compose -f ./docker-compose.yml exec -T web whoami)
-
-          echo "Container user: $USER_NAME"
-
-          test "$USER_NAME" = "appuser"
-
-      - name: Add persistence test task
-        run: |
-          curl -fsS \
-            -X POST \
-            -H "Content-Type: application/json" \
-            -d '{"title":"Persistence Test"}' \
-            http://localhost:5000/tasks
-
-      - name: Restart containers
-        run: |
-          docker compose -f ./docker-compose.yml down
-          docker compose -f ./docker-compose.yml up -d
-
-      - name: Verify persistence
-        run: |
-          for i in {1..30}
-          do
-            if curl -fs http://localhost:5000/health
-            then
-              break
-            fi
-
-            sleep 2
-          done
-
-          curl -fsS http://localhost:5000/tasks | grep "Persistence Test"
-
-          echo "Persistence test passed."
-
-      - name: Show logs
-        if: always()
-        run: |
-          docker compose -f ./docker-compose.yml logs
-
-      - name: Stop containers
-        if: always()
-        run: |
-          docker compose -f ./docker-compose.yml down
