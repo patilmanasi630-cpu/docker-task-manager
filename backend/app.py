@@ -3,11 +3,34 @@ import os
 import psycopg2
 import time
 from prometheus_flask_exporter import PrometheusMetrics
+from flask_httpauth import HTTPBasicAuth
 
 app = Flask(__name__)
 
-# Prometheus monitoring
-metrics = PrometheusMetrics(app)
+# =========================
+# Basic Authentication
+# =========================
+auth = HTTPBasicAuth()
+
+USERNAME = os.getenv("METRICS_USERNAME")
+PASSWORD = os.getenv("METRICS_PASSWORD")
+
+
+@auth.verify_password
+def verify_password(username, password):
+    if username == USERNAME and password == PASSWORD:
+        return username
+    return None
+
+
+# =========================
+# Prometheus Monitoring
+# =========================
+metrics = PrometheusMetrics(
+    app,
+    path="/metrics",
+    metrics_decorator=auth.login_required
+)
 
 # Application information metric
 metrics.info(
@@ -17,6 +40,9 @@ metrics.info(
 )
 
 
+# =========================
+# Database Connection
+# =========================
 def get_db_connection():
     database_url = os.getenv("DATABASE_URL")
 
@@ -26,6 +52,9 @@ def get_db_connection():
     return psycopg2.connect(database_url)
 
 
+# =========================
+# Database Initialization
+# =========================
 def init_db():
     for attempt in range(15):
         try:
@@ -47,18 +76,27 @@ def init_db():
             return
 
         except psycopg2.OperationalError as error:
-            print(f"Waiting for database... Attempt {attempt + 1}/15")
+            print(
+                f"Waiting for database... "
+                f"Attempt {attempt + 1}/15"
+            )
             print(f"Database connection error: {error}")
             time.sleep(3)
 
     raise Exception("Could not connect to database")
 
 
+# =========================
+# Home Page
+# =========================
 @app.route("/")
 def home():
     return render_template("index.html")
 
 
+# =========================
+# Health Check
+# =========================
 @app.route("/health")
 def health():
     try:
@@ -84,12 +122,18 @@ def health():
         }), 503
 
 
+# =========================
+# Get All Tasks
+# =========================
 @app.route("/tasks", methods=["GET"])
 def get_tasks():
     conn = get_db_connection()
     cur = conn.cursor()
 
-    cur.execute("SELECT id, title FROM tasks ORDER BY id")
+    cur.execute(
+        "SELECT id, title FROM tasks ORDER BY id"
+    )
+
     tasks = cur.fetchall()
 
     cur.close()
@@ -104,6 +148,9 @@ def get_tasks():
     ])
 
 
+# =========================
+# Add Task
+# =========================
 @app.route("/tasks", methods=["POST"])
 def add_task():
     data = request.get_json()
@@ -136,6 +183,9 @@ def add_task():
     }), 201
 
 
+# =========================
+# Delete Task
+# =========================
 @app.route("/tasks/<int:task_id>", methods=["DELETE"])
 def delete_task(task_id):
     conn = get_db_connection()
@@ -156,6 +206,9 @@ def delete_task(task_id):
     })
 
 
+# =========================
+# Start Application
+# =========================
 if __name__ == "__main__":
     init_db()
 
